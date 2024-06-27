@@ -32,9 +32,3 @@ blocks:
             - docker tag framegrabber:$SEMAPHORE_WORKFLOW_ID $DOCKER_USERNAME/framegrabber:latest
             - docker push $DOCKER_USERNAME/framegrabber:$SEMAPHORE_WORKFLOW_ID
             - docker push $DOCKER_USERNAME/framegrabber:latest
-
-promotions:
-  - name: Notify push complete
-    pipeline_file: notify-push-complete.yml
-    auto_promote:
-      when: branch = 'main' AND result = 'passed'
