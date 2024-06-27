@@ -1,0 +1,17 @@
+# OpenCV for image processing
+opencv-python==4.7.0.72
+
+# Redis for queue management
+redis==4.5.5
+
+# NumPy for numerical operations
+numpy==1.24.3
+
+# Logging (usually part of Python standard library, but listed for completeness)
+# logging
+
+# DateTime handling (part of Python standard library)
+# datetime
+
+# For handling environment variables
+python-dotenv==1.0.0

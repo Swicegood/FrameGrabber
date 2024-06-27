@@ -1,0 +1,40 @@
+version: v1.0
+name: Framegrabber Pipeline
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu2004
+
+blocks:
+  - name: "Build"
+    task:
+      jobs:
+        - name: "Build Docker image"
+          commands:
+            - checkout
+            - docker build -t framegrabber:$SEMAPHORE_WORKFLOW_ID .
+            - docker save framegrabber:$SEMAPHORE_WORKFLOW_ID > framegrabber.tar
+
+      secrets:
+        - name: dockerhub
+
+      prologue:
+        commands:
+          - echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+
+  - name: "Push"
+    task:
+      jobs:
+        - name: "Push to Docker Hub"
+          commands:
+            - docker load < framegrabber.tar
+            - docker tag framegrabber:$SEMAPHORE_WORKFLOW_ID $DOCKER_USERNAME/framegrabber:$SEMAPHORE_WORKFLOW_ID
+            - docker tag framegrabber:$SEMAPHORE_WORKFLOW_ID $DOCKER_USERNAME/framegrabber:latest
+            - docker push $DOCKER_USERNAME/framegrabber:$SEMAPHORE_WORKFLOW_ID
+            - docker push $DOCKER_USERNAME/framegrabber:latest
+
+promotions:
+  - name: Notify push complete
+    pipeline_file: notify-push-complete.yml
+    auto_promote:
+      when: branch = 'main' AND result = 'passed'
