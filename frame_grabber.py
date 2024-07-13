@@ -30,7 +30,7 @@ CAMERA_IDS = [
     "jLUEC60zHGo7BXfj"
 ]
 TOTAL_CAMERAS = len(CAMERA_IDS)
-TARGET_FPS = 1 / 1020  # 1 frame per minute
+TARGET_FPS = 1 / 60  # 1 frame per minute
 MAX_WORKERS = 44  # Utilizing all 44 CPU cores
 
 # Redis configuration
