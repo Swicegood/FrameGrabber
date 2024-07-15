@@ -46,6 +46,20 @@ RETRY_DELAY = 1  # seconds
 # Redis connection retry configuration
 REDIS_RETRY_DELAY = 5  # seconds
 
+# Assuming TARGET_FPS is a string like '1/180'
+# This function safely evaluates simple mathematical expressions for division
+def safe_eval_fraction(expr):
+    try:
+        numerator, denominator = expr.split('/')
+        return float(numerator) / float(denominator)
+    except ValueError:
+        # Return None or raise an error if the expression is not a simple fraction
+        return None
+
+# Use the safe_eval_fraction function to convert TARGET_FPS to a float
+TARGET_FPS = safe_eval_fraction(TARGET_FPS)
+
+
 class RedisConnectionManager:
     def __init__(self, host, port):
         self.host = host
@@ -143,7 +157,11 @@ def main():
             
             # Calculate sleep time to maintain target FPS
             elapsed_time = time.time() - start_time
-            sleep_time = max(0, (1 / float(TARGET_FPS)) - elapsed_time)
+            if TARGET_FPS:  # Ensure TARGET_FPS is not None or 0 to avoid division by zero
+                sleep_time = max(0, (1 / TARGET_FPS) - elapsed_time)
+            else:
+                # Handle the case where TARGET_FPS is None or 0
+                sleep_time = 0
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
