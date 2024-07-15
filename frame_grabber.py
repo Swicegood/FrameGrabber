@@ -143,7 +143,7 @@ def main():
             
             # Calculate sleep time to maintain target FPS
             elapsed_time = time.time() - start_time
-            sleep_time = max(0, (1 / TARGET_FPS) - elapsed_time)
+            sleep_time = max(0, (1 / float(TARGET_FPS)) - elapsed_time)
             time.sleep(sleep_time)
 
 if __name__ == "__main__":
