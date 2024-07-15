@@ -5,6 +5,7 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import logging
 from datetime import datetime
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -30,7 +31,7 @@ CAMERA_IDS = [
     "jLUEC60zHGo7BXfj"
 ]
 TOTAL_CAMERAS = len(CAMERA_IDS)
-TARGET_FPS = 1 / 60  # 1 frame per minute
+TARGET_FPS = os.getenv('FPS', 1 / 60)  # frame rate
 MAX_WORKERS = 44  # Utilizing all 44 CPU cores
 
 # Redis configuration
