@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 from datetime import datetime
 import os
-import io
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -123,6 +122,7 @@ def grab_frame(camera_url):
         return None
     
     return frame
+
 def grab_and_queue_frame(camera_id, camera_index):
     """Grab a single frame from the given camera URL, push it to the Redis queue, and store for composite."""
     camera_url = f"{BASE_URL}{camera_id}?enableSrtp"
@@ -161,32 +161,81 @@ def grab_and_queue_frame(camera_id, camera_index):
     
     logging.info(f"Frame from camera {camera_index} pushed to Redis queue and stored for hourly composite")
 
-def generate_composite_image(camera_name):
-    """Generate a composite image from the last hour of frames."""
-    hourly_key = HOURLY_FRAMES_KEY.format(camera_name)
+def generate_composite_image(camera_id):
+    """Generate a composite image highlighting areas of significant change over time."""
+    hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
     frames = redis_manager.get_client().lrange(hourly_key, 0, -1)
     
     if not frames:
         return None
     
-    composite = None
+    base_frame = None
+    change_accumulator = None
+    prev_frame = None
+    
     for frame_data in frames:
         nparr = np.frombuffer(frame_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        if composite is None:
-            composite = np.zeros_like(img, dtype=np.float32)
+        if base_frame is None:
+            base_frame = img.copy().astype(float)
+            change_accumulator = np.zeros(img.shape[:2], dtype=np.float32)
+            prev_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            continue
         
-        composite += img.astype(np.float32) / len(frames)
+        # Update running average for base frame
+        cv2.accumulateWeighted(img, base_frame, 0.1)
+        
+        # Convert current frame to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Compute the absolute difference between current and previous frame
+        frame_diff = cv2.absdiff(gray, prev_frame)
+        
+        # Apply adaptive thresholding to account for lighting changes
+        thresh = cv2.adaptiveThreshold(frame_diff, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                       cv2.THRESH_BINARY, 11, 2)
+        
+        # Update change accumulator
+        change_accumulator += thresh.astype(np.float32) / 255.0
+        
+        prev_frame = gray
     
-    composite = composite.astype(np.uint8)
-    _, buffer = cv2.imencode('.png', composite)
+    # Normalize base frame and convert to uint8
+    base_frame = cv2.normalize(base_frame, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    # Normalize change accumulator
+    max_change = np.max(change_accumulator)
+    if max_change > 0:
+        change_accumulator /= max_change
+    
+    # Create color overlay with varying intensity
+    color_overlay = np.zeros_like(base_frame)
+    color_overlay[..., 2] = (change_accumulator * 255).astype(np.uint8)  # Red channel
+    
+    # Apply gaussian blur to smooth out the overlay
+    color_overlay = cv2.GaussianBlur(color_overlay, (5, 5), 0)
+    
+    # Blend base frame with color overlay
+    result = cv2.addWeighted(base_frame, 0.7, color_overlay, 0.3, 0)
+    
+    # Add a legend to the image
+    legend_height = 30
+    legend = np.zeros((legend_height, result.shape[1], 3), dtype=np.uint8)
+    for i in range(result.shape[1]):
+        legend[:, i] = [0, 0, int(255 * i / result.shape[1])]
+    cv2.putText(legend, 'Low Activity', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    
+    result = np.vstack((result, legend))
+    
+    _, buffer = cv2.imencode('.png', result)
     return buffer.tobytes()
 
 def update_composite_images():
     """Update composite images for all cameras."""
     for camera_id in CAMERA_IDS:
-        composite = generate_composite_image(camera_names[camera_id])
+        composite = generate_composite_image(camera_id)
         if composite:
             composite_key = COMPOSITE_IMAGE_KEY.format(camera_names[camera_id])
             redis_manager.get_client().set(composite_key, composite)
