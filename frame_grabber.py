@@ -28,7 +28,8 @@ CAMERA_IDS = [
     "IOKAu7MMacLh79zn",
     "sHlS7ewuGDEd2ef4",
     "OSF13XTCKhpIkyXc",
-    "jLUEC60zHGo7BXfj"
+    "jLUEC60zHGo7BXfj",
+    "AXIS_ID"  # Add the new camera ID here
 ]
 
 camera_names = {
@@ -37,8 +38,12 @@ camera_names = {
     "94uZsJ2yIouIXp2x": "Greenhouse", "5SJZivf8PPsLWw2n": "Hall", "g8rHNVCflWO1ptKN": "Kitchen",
     "t3ZIWTl9jZU1JGEI": "Pavillion", "iY9STaEt7K9vS8yJ": "Prabhupada", "jlNNdFFvhQ2o2kmn": "Stage",
     "IOKAu7MMacLh79zn": "Temple", "sHlS7ewuGDEd2ef4": "Up_Pujari", "OSF13XTCKhpIkyXc": "Walk-in",
-    "jLUEC60zHGo7BXfj": "Walkway"
+    "jLUEC60zHGo7BXfj": "Walkway",
+    "AXIS_ID": "Axis"  # Add the new camera name here
 }
+
+# New camera URL
+AXIS_URL = "rtsp://jaga:ahare7462s@192.168.0.90/onvif-media/media.amp?profile=profile_1_h264&sessiontimeout=60&streamtype=unicast&fps=15&audio=1"
 
 TOTAL_CAMERAS = len(CAMERA_IDS)
 TARGET_FPS = os.getenv('FPS', "1/60")  # frame rate
@@ -55,7 +60,6 @@ RETRY_DELAY = 1  # seconds
 
 # Redis connection retry configuration
 REDIS_RETRY_DELAY = 5  # seconds
-
 
 # Add new Redis keys for storing hourly frames and composite images
 HOURLY_FRAMES_KEY = 'hourly_frames_{}'  # Will be formatted with camera_id
@@ -123,9 +127,16 @@ def grab_frame(camera_url):
     
     return frame
 
+def get_camera_url(camera_id):
+    """Generate the appropriate URL for the given camera ID."""
+    if camera_id == "AXIS_ID":
+        return AXIS_URL
+    else:
+        return f"{BASE_URL}{camera_id}?enableSrtp"
+
 def grab_and_queue_frame(camera_id, camera_index):
     """Grab a single frame from the given camera URL, push it to the Redis queue, and store for composite."""
-    camera_url = f"{BASE_URL}{camera_id}?enableSrtp"
+    camera_url = get_camera_url(camera_id)
     
     for attempt in range(MAX_RETRIES):
         frame = grab_frame(camera_url)
