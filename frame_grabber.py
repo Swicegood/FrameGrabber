@@ -113,6 +113,23 @@ class RedisConnectionManager:
 # Initialize Redis connection manager
 redis_manager = RedisConnectionManager(REDIS_HOST, REDIS_PORT)
 
+def clear_redis_data():
+    """Clear all relevant Redis keys on startup."""
+    redis_client = redis_manager.get_client()
+    
+    # Clear the main frame queue
+    redis_client.delete(REDIS_QUEUE)
+    
+    # Clear all hourly frames and composite images
+    for camera_id in CAMERA_IDS:
+        camera_name = camera_names[camera_id]
+        hourly_key = HOURLY_FRAMES_KEY.format(camera_name)
+        composite_key = COMPOSITE_IMAGE_KEY.format(camera_name)
+        redis_client.delete(hourly_key)
+        redis_client.delete(composite_key)
+    
+    logging.info("Cleared all relevant Redis keys")
+
 def grab_frame(camera_url):
     """Attempt to grab a single frame from the given camera URL."""
     cap = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
@@ -255,6 +272,8 @@ def update_composite_images():
 def main():
     # Ensure initial Redis connection
     redis_manager.connect()
+
+    clear_redis_data()
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         last_composite_update = time.time()
