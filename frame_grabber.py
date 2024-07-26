@@ -270,7 +270,7 @@ def generate_composite_image(camera_id):
     result = np.vstack((result, legend))
     
     # Add information about the number of frames included
-    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
+    cv2.putText(result, f'               Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
     _, buffer = cv2.imencode('.png', result)
