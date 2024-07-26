@@ -189,6 +189,9 @@ def grab_and_queue_frame(camera_id, camera_index):
     
     logging.info(f"Frame from camera {camera_index} pushed to Redis queue and stored for hourly composite")
 
+import numpy as np
+import cv2
+
 def generate_composite_image(camera_id):
     """Generate a composite image highlighting areas of significant change over time."""
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
@@ -200,6 +203,7 @@ def generate_composite_image(camera_id):
     base_frame = None
     change_accumulator = None
     prev_frame = None
+    included_frames = []
     
     for frame_data in frames:
         nparr = np.frombuffer(frame_data, np.uint8)
@@ -209,23 +213,31 @@ def generate_composite_image(camera_id):
             base_frame = img.copy().astype(float)
             change_accumulator = np.zeros(img.shape[:2], dtype=np.float32)
             prev_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            included_frames.append(img)
             continue
-        
-        # Update running average for base frame
-        cv2.accumulateWeighted(img, base_frame, 0.1)
         
         # Convert current frame to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # Compute the absolute difference between current and previous frame
-        frame_diff = cv2.absdiff(gray, prev_frame)
+        # Compute the structural similarity index (SSIM) between the current and previous frame
+        ssim = cv2.compareSSIM(prev_frame, gray)
         
-        # Apply adaptive thresholding to account for lighting changes
-        thresh = cv2.adaptiveThreshold(frame_diff, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                       cv2.THRESH_BINARY, 11, 2)
-        
-        # Update change accumulator
-        change_accumulator += thresh.astype(np.float32) / 255.0
+        # If the frames are not too similar, include this frame in the composite
+        if ssim < 0.95:  # You can adjust this threshold
+            # Update running average for base frame
+            cv2.accumulateWeighted(img, base_frame, 0.1)
+            
+            # Compute the absolute difference between current and previous frame
+            frame_diff = cv2.absdiff(gray, prev_frame)
+            
+            # Apply adaptive thresholding to account for lighting changes
+            thresh = cv2.adaptiveThreshold(frame_diff, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                           cv2.THRESH_BINARY, 11, 2)
+            
+            # Update change accumulator
+            change_accumulator += thresh.astype(np.float32) / 255.0
+            
+            included_frames.append(img)
         
         prev_frame = gray
     
@@ -256,6 +268,10 @@ def generate_composite_image(camera_id):
     cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
     result = np.vstack((result, legend))
+    
+    # Add information about the number of frames included
+    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
     _, buffer = cv2.imencode('.png', result)
     return buffer.tobytes()
