@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 from datetime import datetime
 import os
+from skimage.metrics import structural_similarity as ssim
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -223,10 +225,10 @@ def generate_composite_image(camera_id):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         # Compute the structural similarity index (SSIM) between the current and previous frame
-        ssim = cv2.similarity_structural(prev_frame, gray)[0]  # Use the correct function and get the SSIM value
+        ssim_value = ssim(prev_frame, gray)
         
         # If the frames are not too similar, include this frame in the composite
-        if ssim < 0.95:  # You can adjust this threshold
+        if ssim_value < 0.95:  # You can adjust this threshold
             # Update running average for base frame
             cv2.accumulateWeighted(img, base_frame, 0.1)
             
@@ -267,13 +269,14 @@ def generate_composite_image(camera_id):
     legend = np.zeros((legend_height, result.shape[1], 3), dtype=np.uint8)
     for i in range(result.shape[1]):
         legend[:, i] = [0, 0, int(255 * i / result.shape[1])]
+    # Adjust the vertical positions to avoid overlap
     cv2.putText(legend, 'Low Activity', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    
+
     result = np.vstack((result, legend))
-    
-    # Add information about the number of frames included
-    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
+
+    # Adjust the vertical position of the "Frames" text to avoid overlap with "Low Activity"
+    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
     _, buffer = cv2.imencode('.png', result)
