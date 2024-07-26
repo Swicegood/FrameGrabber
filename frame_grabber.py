@@ -192,6 +192,9 @@ def grab_and_queue_frame(camera_id, camera_index):
 import numpy as np
 import cv2
 
+import numpy as np
+import cv2
+
 def generate_composite_image(camera_id):
     """Generate a composite image highlighting areas of significant change over time."""
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
@@ -220,7 +223,7 @@ def generate_composite_image(camera_id):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
         # Compute the structural similarity index (SSIM) between the current and previous frame
-        ssim = cv2.compareSSIM(prev_frame, gray)
+        ssim = cv2.similarity_structural(prev_frame, gray)[0]  # Use the correct function and get the SSIM value
         
         # If the frames are not too similar, include this frame in the composite
         if ssim < 0.95:  # You can adjust this threshold
@@ -264,16 +267,15 @@ def generate_composite_image(camera_id):
     legend = np.zeros((legend_height, result.shape[1], 3), dtype=np.uint8)
     for i in range(result.shape[1]):
         legend[:, i] = [0, 0, int(255 * i / result.shape[1])]
-    # Adjust the vertical positions to avoid overlap
     cv2.putText(legend, 'Low Activity', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
+    
     result = np.vstack((result, legend))
-
-    # Adjust the vertical position of the "Frames" text to avoid overlap with "Low Activity"
-    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 30),
+    
+    # Add information about the number of frames included
+    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        
+    
     _, buffer = cv2.imencode('.png', result)
     return buffer.tobytes()
 
