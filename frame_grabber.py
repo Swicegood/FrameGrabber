@@ -264,15 +264,16 @@ def generate_composite_image(camera_id):
     legend = np.zeros((legend_height, result.shape[1], 3), dtype=np.uint8)
     for i in range(result.shape[1]):
         legend[:, i] = [0, 0, int(255 * i / result.shape[1])]
+    # Adjust the vertical positions to avoid overlap
     cv2.putText(legend, 'Low Activity', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    
+
     result = np.vstack((result, legend))
-    
-    # Add information about the number of frames included
-    cv2.putText(result, f'               Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 10),
+
+    # Adjust the vertical position of the "Frames" text to avoid overlap with "Low Activity"
+    cv2.putText(result, f'Frames: {len(included_frames)}/{len(frames)}', (10, result.shape[0] - 30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    
+        
     _, buffer = cv2.imencode('.png', result)
     return buffer.tobytes()
 
