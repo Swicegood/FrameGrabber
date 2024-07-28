@@ -191,12 +191,6 @@ def grab_and_queue_frame(camera_id, camera_index):
     
     logging.info(f"Frame from camera {camera_index} pushed to Redis queue and stored for hourly composite")
 
-import numpy as np
-import cv2
-
-import numpy as np
-import cv2
-
 def generate_composite_image(camera_id):
     """Generate a composite image highlighting areas of significant change over time."""
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
