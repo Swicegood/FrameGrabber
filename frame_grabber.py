@@ -48,7 +48,7 @@ camera_names = {
 AXIS_URL = "rtsp://jaga:ahare7462s@192.168.0.90/onvif-media/media.amp?profile=profile_1_h264&sessiontimeout=60&streamtype=unicast&fps=15&audio=1"
 
 TOTAL_CAMERAS = len(CAMERA_IDS)
-TARGET_FPS = os.getenv('FPS', "1/60")  # frame rate
+TARGET_FPS = os.getenv('FPS', "1/500")  # frame rate
 MAX_WORKERS = 44  # Utilizing all 44 CPU cores
 
 # Redis configuration
@@ -184,10 +184,10 @@ def grab_and_queue_frame(camera_id, camera_index):
     # Push to Redis queue for LLM processing
     redis_manager.push_to_queue(REDIS_QUEUE, str(frame_data))
     
-    # Store frame for hourly composite
-    hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
-    redis_manager.get_client().lpush(hourly_key, png_as_text)
-    redis_manager.get_client().ltrim(hourly_key, 0, 59)  # Keep only the last 60 frames (1 hour at 1 frame per minute)
+    # # Store frame for hourly composite
+    # hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
+    # redis_manager.get_client().lpush(hourly_key, png_as_text)
+    # redis_manager.get_client().ltrim(hourly_key, 0, 59)  # Keep only the last 60 frames (1 hour at 1 frame per minute)
     
     logging.info(f"Frame from camera {camera_index} pushed to Redis queue and stored for hourly composite")
 
@@ -304,10 +304,10 @@ def main():
             for future in futures:
                 future.result()
             
-            # Update composite images every minute
-            if time.time() - last_composite_update >= 60:
-                update_composite_images()
-                last_composite_update = time.time()
+            # # Update composite images every minute
+            # if time.time() - last_composite_update >= 60:
+            #     update_composite_images()
+            #     last_composite_update = time.time()
             
             # Calculate sleep time to maintain target FPS
             elapsed_time = time.time() - start_time
