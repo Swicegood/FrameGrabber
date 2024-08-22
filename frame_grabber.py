@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 import os
 from skimage.metrics import structural_similarity as ssim
+import threading
 
 
 # Configure logging
@@ -67,6 +68,9 @@ REDIS_RETRY_DELAY = 5  # seconds
 HOURLY_FRAMES_KEY = 'hourly_frames_{}'  # Will be formatted with camera_id
 COMPOSITE_IMAGE_KEY = 'composite_{}'  # Will be formatted with camera_id
 
+REDIS_EXPIRATION_SET = 'frame_queue_expirations'
+EXPIRATION_TIME = 300  # 5 minutes
+
 # Assuming TARGET_FPS is a string like '1/180'
 # This function safely evaluates simple mathematical expressions for division
 def safe_eval_fraction(expr):
@@ -111,6 +115,22 @@ class RedisConnectionManager:
             except redis.ConnectionError as e:
                 logging.warning(f"Redis connection lost: {str(e)}. Attempting to reconnect...")
                 self.connect()  # Try to reconnect
+                
+    # Add a method to expose zrangebyscore
+    def zrangebyscore(self, name, min, max):
+        return self.get_client().zrangebyscore(name, min, max)
+
+    # Add a method to expose zadd
+    def zadd(self, name, mapping):
+        return self.get_client().zadd(name, mapping)
+
+    # Add a method to expose zremrangebyscore
+    def zremrangebyscore(self, name, min, max):
+        return self.get_client().zremrangebyscore(name, min, max)
+
+    # Add a method to expose lrem
+    def lrem(self, name, count, value):
+        return self.get_client().lrem(name, count, value)
 
 # Initialize Redis connection manager
 redis_manager = RedisConnectionManager(REDIS_HOST, REDIS_PORT)
@@ -183,6 +203,10 @@ def grab_and_queue_frame(camera_id, camera_index):
     
     # Push to Redis queue for LLM processing
     redis_manager.push_to_queue(REDIS_QUEUE, str(frame_data))
+    
+    # Add item to the expiration set with the current timestamp + expiration time
+    expiration_timestamp = time.time() + EXPIRATION_TIME
+    redis_manager.zadd(REDIS_EXPIRATION_SET, {frame_data: expiration_timestamp})
     
     # Store frame for hourly composite
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
@@ -285,6 +309,27 @@ def update_composite_images():
             redis_manager.get_client().set(composite_key, composite)
             logging.info(f"Updated composite image for camera {camera_names[camera_id]}")
 
+def clean_up_expired_items():
+    while True:
+        # Get the current timestamp
+        current_timestamp = time.time()
+        
+        # Find expired items
+        expired_items = redis_manager.zrangebyscore(REDIS_EXPIRATION_SET, 0, current_timestamp)
+        
+        if expired_items:
+            # Remove expired items from the list
+            for item in expired_items:
+                redis_manager.lrem(REDIS_QUEUE, 0, item)
+            
+            # Remove expired items from the expiration set
+            redis_manager.zremrangebyscore(REDIS_EXPIRATION_SET, 0, current_timestamp)
+        
+        # Sleep for a while before checking again
+        time.sleep(60)  # Check every minute
+
+
+
 def main():
     # Ensure initial Redis connection
     redis_manager.connect()
@@ -316,6 +361,11 @@ def main():
             else:
                 sleep_time = 0
             time.sleep(sleep_time)
+            
+    # Start the cleanup task in a background thread
+    cleanup_thread = threading.Thread(target=clean_up_expired_items)
+    cleanup_thread.daemon = True
+    cleanup_thread.start()
 
 if __name__ == "__main__":
     main()
