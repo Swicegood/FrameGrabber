@@ -321,6 +321,7 @@ def clean_up_expired_items():
             # Remove expired items from the list
             for item in expired_items:
                 redis_manager.lrem(REDIS_QUEUE, 0, item)
+                logging.info(f"Removed expired item from the queue")
             
             # Remove expired items from the expiration set
             redis_manager.zremrangebyscore(REDIS_EXPIRATION_SET, 0, current_timestamp)
