@@ -206,7 +206,7 @@ def grab_and_queue_frame(camera_id, camera_index):
     
     # Add item to the expiration set with the current timestamp + expiration time
     expiration_timestamp = time.time() + EXPIRATION_TIME
-    redis_manager.zadd(REDIS_EXPIRATION_SET, {frame_data: expiration_timestamp})
+    redis_manager.zadd(REDIS_EXPIRATION_SET, {str(frame_data): expiration_timestamp})
     
     # Store frame for hourly composite
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
@@ -324,6 +324,7 @@ def clean_up_expired_items():
             
             # Remove expired items from the expiration set
             redis_manager.zremrangebyscore(REDIS_EXPIRATION_SET, 0, current_timestamp)
+            logging.info(f"Cleaned up {len(expired_items)} expired items")
         
         # Sleep for a while before checking again
         time.sleep(60)  # Check every minute
@@ -335,6 +336,11 @@ def main():
     redis_manager.connect()
 
     clear_redis_data()
+    
+    # Start the cleanup task in a background thread
+    cleanup_thread = threading.Thread(target=clean_up_expired_items)
+    cleanup_thread.daemon = True
+    cleanup_thread.start()
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         last_composite_update = time.time()
@@ -362,10 +368,6 @@ def main():
                 sleep_time = 0
             time.sleep(sleep_time)
             
-    # Start the cleanup task in a background thread
-    cleanup_thread = threading.Thread(target=clean_up_expired_items)
-    cleanup_thread.daemon = True
-    cleanup_thread.start()
 
 if __name__ == "__main__":
     main()
