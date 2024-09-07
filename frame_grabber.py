@@ -253,6 +253,12 @@ def generate_composite_image(camera_id):
     legend = np.zeros((legend_height, result.shape[1], 3), dtype=np.uint8)
     for i in range(result.shape[1]):
         legend[:, i] = [0, 0, int(255 * i / result.shape[1])]
+        
+    # Add timestamp to the image
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cv2.putText(result, timestamp, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+        
     # Adjust the vertical positions to avoid overlap
     cv2.putText(legend, 'Low Activity', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(legend, 'High Activity', (result.shape[1] - 120, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
