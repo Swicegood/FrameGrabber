@@ -1,14 +1,14 @@
+
 import time
 import cv2
 import redis
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import logging
+from datetime import datetime
 import os
 from skimage.metrics import structural_similarity as ssim
 import threading
-import time  # Importing the time module for time-based operations
-from datetime import datetime, time as datetime_time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -50,7 +50,6 @@ AXIS_URL = "rtsp://jaga:ahare7462s@192.168.0.90/onvif-media/media.amp?profile=pr
 
 TOTAL_CAMERAS = len(CAMERA_IDS)
 TARGET_FPS = os.getenv('FPS', "1/60")  # frame rate
-TARGET_HIGH_FPS = 1  # frame rate for high-frequency periods        
 MAX_WORKERS = 44  # Utilizing all 44 CPU cores
 
 # Redis configuration
@@ -149,24 +148,6 @@ def get_camera_url(camera_id):
     else:
         return f"{BASE_URL}{camera_id}?enableSrtp"
     
-def is_high_frequency_period(camera_id):
-    current_time = datetime.now().time()
-    
-    if camera_id == "sHlS7ewuGDEd2ef4":
-        # Define the high-frequency periods as ranges
-        high_frequency_periods = [
-            (datetime_time(11, 55), datetime_time(12, 0)),
-            (datetime_time(15, 45), datetime_time(15, 55)),
-            (datetime_time(18, 40), datetime_time(18, 45)),
-            (datetime_time(17, 50), datetime_time(18, 25))
-        ]
-        
-        # Check if current time falls within any of the defined ranges
-        result = any(start <= current_time <= end for start, end in high_frequency_periods)
-        return result
-    
-    return False
-    
 def grab_and_store_frame(camera_id, camera_index):
     camera_url = get_camera_url(camera_id)
     
@@ -189,31 +170,17 @@ def grab_and_store_frame(camera_id, camera_index):
         'camera_id': camera_id,
         'camera_index': camera_index,
         'timestamp': datetime.now().isoformat(),
-        'frame': png_as_text,
-        'needs_noshow_check': is_high_frequency_period(camera_id)
+        'frame': png_as_text  
     }
     
-    redis_client = redis_manager.get_client()
-    
-    if is_high_frequency_period(camera_id):
-        # For high-frequency periods, store in a separate Redis key
-        high_freq_key = f"high_freq_frame:{camera_id}"
-        redis_client.set(high_freq_key, str(frame_data))
-        logging.info(f"Stored high-frequency frame for camera {camera_index}")
-    else:
     #  Store frame for hourly composite
-        hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
-        redis_manager.get_client().lpush(hourly_key, png_as_text)
-        redis_manager.get_client().ltrim(hourly_key, 0, 59)  # Keep only the last 60 frames (1 hour at 1 frame per minute)
-        redis_client = redis_manager.get_client()
-        redis_client.set(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
+    hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
+    redis_manager.get_client().lpush(hourly_key, png_as_text)
+    redis_manager.get_client().ltrim(hourly_key, 0, 59)  # Keep only the last 60 frames (1 hour at 1 frame per minute)
+    redis_client = redis_manager.get_client()
+    redis_client.set(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
     
-        logging.info(f"Stored new frame for camera {camera_index}")
-        
-    if frame_data['needs_noshow_check']:
-        noshow_check_queue = 'noshow_check_queue'
-        redis_client.rpush(noshow_check_queue, str(frame_data))
-        logging.info(f"Added frame for camera {camera_id} to NOSHOW check queue")
+    logging.info(f"Stored new frame for camera {camera_index}")
     
 def generate_composite_image(camera_id):
     """Generate a composite image highlighting areas of significant change over time."""
@@ -321,43 +288,31 @@ def main():
     
     clear_redis_data()
 
-    last_composite_update = time.time()
-    last_frame_time = {camera_id: 0 for camera_id in CAMERA_IDS}
-
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        last_composite_update = time.time()
         while True:
             start_time = time.time()
             
             # Submit tasks for all cameras
-            futures = [
-                executor.submit(
-                    grab_and_store_frame, 
-                    camera_id, 
-                    i+1
-                )
-                for i, camera_id in enumerate(CAMERA_IDS)
-                if is_high_frequency_period(camera_id) or (start_time - last_frame_time[camera_id] >= 1/TARGET_FPS)
-            ]
+            futures = [executor.submit(grab_and_store_frame, camera_id, i+1) 
+                       for i, camera_id in enumerate(CAMERA_IDS)]
             
             # Wait for all tasks to complete
             for future in futures:
                 future.result()
-            
-            # Update last frame times for processed cameras
-            for camera_id in CAMERA_IDS:
-                if is_high_frequency_period(camera_id) or (start_time - last_frame_time[camera_id] >= 1/TARGET_FPS):
-                    last_frame_time[camera_id] = start_time
             
             # Update composite images every minute
             if time.time() - last_composite_update >= 60:
                 update_composite_images()
                 last_composite_update = time.time()
             
-            # Calculate sleep time to maintain target FPS for non-high-frequency periods
+            # Calculate sleep time to maintain target FPS
             elapsed_time = time.time() - start_time
-            if TARGET_FPS:
+            if TARGET_FPS:  # Ensure TARGET_FPS is not None or 0 to avoid division by zero
                 sleep_time = max(0, (1 / TARGET_FPS) - elapsed_time)
-                time.sleep(sleep_time)
+            else:
+                sleep_time = 0
+            time.sleep(sleep_time)
             
 
 if __name__ == "__main__":
