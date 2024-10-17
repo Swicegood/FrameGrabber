@@ -2,11 +2,13 @@ import cv2
 import numpy as np
 from datetime import datetime
 from skimage.metrics import structural_similarity as ssim
+import logging
+from redis_manager import redis_manager
 from config import HOURLY_FRAMES_KEY, COMPOSITE_IMAGE_KEY
 
-def generate_composite_image(camera_id, camera_names, redis_client):
+def generate_composite_image(camera_id, camera_names):
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
-    frames = redis_client.lrange(hourly_key, 0, -1)
+    frames = redis_manager.lrange(hourly_key, 0, -1)
     
     if not frames:
         return None
@@ -72,10 +74,10 @@ def generate_composite_image(camera_id, camera_names, redis_client):
     _, buffer = cv2.imencode('.png', result)
     return buffer.tobytes()
 
-def update_composite_images(camera_ids, camera_names, redis_client):
+def update_composite_images(camera_ids, camera_names):
     for camera_id in camera_ids:
-        composite = generate_composite_image(camera_id, camera_names, redis_client)
+        composite = generate_composite_image(camera_id, camera_names)
         if composite:
             composite_key = COMPOSITE_IMAGE_KEY.format(camera_names[camera_id])
-            redis_client.set(composite_key, composite)
+            redis_manager.set(composite_key, composite)
             logging.info(f"Updated composite image for camera {camera_names[camera_id]}")

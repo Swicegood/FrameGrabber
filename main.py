@@ -2,29 +2,28 @@ import time
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from config import CAMERA_IDS, camera_names, MAX_WORKERS, TARGET_FPS
-from redis_manager import redis_manager, clear_redis_data
+from redis_manager import clear_redis_data
 from camera_operations import grab_and_store_frame
 from image_processing import update_composite_images
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main():
-    redis_client = redis_manager.get_client()
-    clear_redis_data(redis_client, CAMERA_IDS, camera_names)
+    clear_redis_data(CAMERA_IDS, camera_names)
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         last_composite_update = time.time()
         while True:
             start_time = time.time()
             
-            futures = [executor.submit(grab_and_store_frame, camera_id, i+1, camera_names, redis_client) 
+            futures = [executor.submit(grab_and_store_frame, camera_id, i+1, camera_names) 
                        for i, camera_id in enumerate(CAMERA_IDS)]
             
             for future in futures:
                 future.result()
             
             if time.time() - last_composite_update >= 60:
-                update_composite_images(CAMERA_IDS, camera_names, redis_client)
+                update_composite_images(CAMERA_IDS, camera_names)
                 last_composite_update = time.time()
             
             elapsed_time = time.time() - start_time

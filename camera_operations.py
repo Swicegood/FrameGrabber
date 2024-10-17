@@ -2,6 +2,7 @@ import cv2
 import time
 import logging
 from datetime import datetime
+from redis_manager import redis_manager
 from config import BASE_URL, AXIS_URL, MAX_RETRIES, RETRY_DELAY, REDIS_FRAME_KEY, HOURLY_FRAMES_KEY
 
 def get_camera_url(camera_id):
@@ -23,7 +24,7 @@ def grab_frame(camera_url):
     
     return frame
 
-def grab_and_store_frame(camera_id, camera_index, camera_names, redis_client):
+def grab_and_store_frame(camera_id, camera_index, camera_names):
     camera_url = get_camera_url(camera_id)
     
     for attempt in range(MAX_RETRIES):
@@ -49,8 +50,8 @@ def grab_and_store_frame(camera_id, camera_index, camera_names, redis_client):
     }
     
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
-    redis_client.lpush(hourly_key, png_as_text)
-    redis_client.ltrim(hourly_key, 0, 59)
-    redis_client.set(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
+    redis_manager.lpush(hourly_key, png_as_text)
+    redis_manager.ltrim(hourly_key, 0, 59)
+    redis_manager.set(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
     
     logging.info(f"Stored new frame for camera {camera_index}")
