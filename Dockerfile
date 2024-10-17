@@ -24,4 +24,4 @@ COPY frame_grabber.py .
 ENV OPENCV_DNN_BACKEND_FORCE_CPU=1
 
 # Run the script when the container launches
-CMD ["python", "frame_grabber.py"]
+CMD ["python", "main.py"]
