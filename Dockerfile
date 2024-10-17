@@ -18,7 +18,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Python script into the container
-COPY frame_grabber.py .
+COPY . .
 
 # Set environment variable to force OpenCV to use CPU
 ENV OPENCV_DNN_BACKEND_FORCE_CPU=1
