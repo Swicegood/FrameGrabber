@@ -9,7 +9,7 @@ CAMERA_IDS = [
     "94uZsJ2yIouIXp2x", "5SJZivf8PPsLWw2n", "g8rHNVCflWO1ptKN",
     "t3ZIWTl9jZU1JGEI", "iY9STaEt7K9vS8yJ", "jlNNdFFvhQ2o2kmn",
     "IOKAu7MMacLh79zn", "sHlS7ewuGDEd2ef4", "OSF13XTCKhpIkyXc",
-    "jLUEC60zHGo7BXfj", "AXIS_ID"
+    "jLUEC60zHGo7BXfj", "AXIS_ID", "prXH5H6e9GxOij1Z"
 ]
 
 camera_names = {
@@ -18,8 +18,7 @@ camera_names = {
     "94uZsJ2yIouIXp2x": "Greenhouse", "5SJZivf8PPsLWw2n": "Hall", "g8rHNVCflWO1ptKN": "Kitchen",
     "t3ZIWTl9jZU1JGEI": "Pavillion", "iY9STaEt7K9vS8yJ": "Prabhupada", "jlNNdFFvhQ2o2kmn": "Stage",
     "IOKAu7MMacLh79zn": "Temple", "sHlS7ewuGDEd2ef4": "Up_Pujari", "OSF13XTCKhpIkyXc": "Walk-in",
-    "jLUEC60zHGo7BXfj": "Walkway",
-    "AXIS_ID": "Axis"  # Add the new camera name here
+    "jLUEC60zHGo7BXfj": "Walkway", "AXIS_ID": "Axis", "prXH5H6e9GxOij1Z": "Front Driveway"  # Add the new camera name here
 }
 
 TOTAL_CAMERAS = len(CAMERA_IDS)
