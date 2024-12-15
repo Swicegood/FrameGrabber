@@ -52,6 +52,6 @@ def grab_and_store_frame(camera_id, camera_index, camera_names):
     hourly_key = HOURLY_FRAMES_KEY.format(camera_names[camera_id])
     redis_manager.lpush(hourly_key, png_as_text)
     redis_manager.ltrim(hourly_key, 0, 59)
-    redis_manager.set(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
+    redis_manager.doset(REDIS_FRAME_KEY.format(camera_id), str(frame_data))
     
     logging.info(f"Stored new frame for camera {camera_index}")

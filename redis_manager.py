@@ -41,7 +41,7 @@ class RedisConnectionManager:
     def lpush(self, *args, **kwargs):
         return self.execute_with_retry(self.get_client().lpush, *args, **kwargs)
 
-    def set(self, *args, **kwargs):
+    def doset(self, *args, **kwargs):
         return self.execute_with_retry(self.get_client().set, *args, **kwargs)
 
     def delete(self, *args, **kwargs):

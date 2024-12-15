@@ -79,5 +79,5 @@ def update_composite_images(camera_ids, camera_names):
         composite = generate_composite_image(camera_id, camera_names)
         if composite:
             composite_key = COMPOSITE_IMAGE_KEY.format(camera_names[camera_id])
-            redis_manager.set(composite_key, composite)
+            redis_manager.doset(composite_key, composite)
             logging.info(f"Updated composite image for camera {camera_names[camera_id]}")
