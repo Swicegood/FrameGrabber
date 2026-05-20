@@ -9,8 +9,8 @@ from datetime import datetime
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# RTSPS stream configuration
-BASE_URL = "rtsps://192.168.0.1:7441/"
+# RTSP stream configuration
+BASE_URL = "rtsp://192.168.0.114:7447/"
 CAMERA_IDS = [
     "fBsMBKQxVTOw7WwR",
     # Add the rest of your camera identifiers here
@@ -25,7 +25,7 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 
 def grab_and_save_frame(camera_id, camera_index):
     """Grab a single frame from the given camera URL and save it locally."""
-    camera_url = f"{BASE_URL}{camera_id}?enableSrtp"
+    camera_url = f"{BASE_URL}{camera_id}"
     cap = cv2.VideoCapture(camera_url)
     
     if not cap.isOpened():

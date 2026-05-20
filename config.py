@@ -1,6 +1,6 @@
 import os
 
-BASE_URL = "rtsps://192.168.0.1:7441/"
+BASE_URL = "rtsp://192.168.0.114:7447/"
 AXIS_URL = "rtsp://jaga:ahare7462s@192.168.0.90/onvif-media/media.amp?profile=profile_1_h264&sessiontimeout=60&streamtype=unicast&fps=15&audio=1"
 
 CAMERA_IDS = [

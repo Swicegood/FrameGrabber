@@ -9,7 +9,7 @@ def get_camera_url(camera_id):
     if camera_id == "AXIS_ID":
         return AXIS_URL
     else:
-        return f"{BASE_URL}{camera_id}?enableSrtp"
+        return f"{BASE_URL}{camera_id}"
 
 def grab_frame(camera_url):
     cap = cv2.VideoCapture(camera_url, cv2.CAP_FFMPEG)
